@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>thingboard · Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* Hallmark · variation: Terminal · genre: atmospheric (CLI)
+     * paper: dark (not black) · display: mono (JetBrains Mono) · accent: phosphor-green
+     * pre-emit critique: P5 H4 E5 S5 R5 V5
+     */
+    :root {
+      --paper: oklch(22% 0.012 264);
+      --card: oklch(27.5% 0.014 264);
+      --card-hi: oklch(31% 0.016 264);
+      --ink: oklch(88% 0.012 264);
+      --ink-soft: oklch(68% 0.012 264);
+      --ink-faint: oklch(52% 0.012 264);
+      --line: oklch(36% 0.014 264);
+      --line-hi: oklch(46% 0.016 264);
+      --accent: oklch(83% 0.17 148);
+      --accent-dim: oklch(83% 0.17 148 / 0.35);
+
+      --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+
+      --r-card: 7px;
+      --dur: 140ms;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 30px 30px;
+      background-position: -1px -1px;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: var(--paper);
+      opacity: 0.55;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .hdr {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.7rem 1.05rem;
+      background: color-mix(in oklab, var(--paper), black 25%);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      font-size: 0.98rem;
+    }
+
+    .logo {
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .logo::before {
+      content: "~/";
+      color: var(--ink-faint);
+      font-weight: 400;
+    }
+
+    .prompt {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .count {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+    }
+
+    .count::before {
+      content: "[";
+      color: var(--ink-faint);
+    }
+
+    .count::after {
+      content: "]";
+      color: var(--ink-faint);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      background: var(--card);
+      border: 1px solid var(--line-hi);
+      border-radius: 5px;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color var(--dur), border-color var(--dur), background var(--dur), transform var(--dur) var(--ease-out);
+    }
+
+    .btn::before {
+      content: ":";
+      color: var(--ink-faint);
+    }
+
+    .btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--card-hi);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .board {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .things {
+      position: absolute;
+      inset: 0;
+    }
+
+    .thing {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      width: max-content;
+      will-change: transform;
+    }
+
+    .handle {
+      height: 22px;
+      border: 1px solid var(--line-hi);
+      border-bottom: 0;
+      border-radius: var(--r-card) var(--r-card) 0 0;
+      background: var(--card-hi);
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0 0.55rem;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .handle:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .handle:active {
+      cursor: grabbing;
+    }
+
+    .handle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .grip {
+      color: var(--ink-faint);
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+    }
+
+    .grip::before {
+      content: ":::::";
+    }
+
+    .coord {
+      display: none;
+    }
+
+    .ta {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      line-height: 1.55;
+      color: var(--ink);
+      background: var(--card);
+      border: 1px solid var(--line-hi);
+      border-top: 0;
+      border-radius: 0 0 var(--r-card) var(--r-card);
+      padding: 0.6rem 0.75rem;
+      width: 300px;
+      height: 180px;
+      min-width: 172px;
+      min-height: 92px;
+      resize: both;
+      outline: none;
+      caret-color: var(--accent);
+      transition: border-color var(--dur), background var(--dur);
+    }
+
+    .ta::placeholder {
+      color: var(--ink-faint);
+    }
+
+    .thing:focus-within {
+      z-index: 999;
+    }
+
+    .thing:focus-within .handle {
+      background: color-mix(in oklab, var(--card-hi), var(--accent) 18%);
+      border-color: var(--accent);
+    }
+
+    .thing:focus-within .grip {
+      color: var(--accent);
+    }
+
+    .thing:focus-within .ta {
+      border-color: var(--accent);
+      background: var(--card-hi);
+    }
+
+    .thing.dragging .ta {
+      background: var(--card-hi);
+    }
+
+    .tools {
+      position: absolute;
+      top: -2.2rem;
+      left: 0;
+      display: flex;
+      gap: 0.3rem;
+      padding: 0.2rem;
+      border-radius: 6px;
+      background: color-mix(in oklab, var(--paper), black 20%);
+      border: 1px solid var(--line-hi);
+      opacity: 0;
+      transform: translateY(4px);
+      pointer-events: none;
+      transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+    }
+
+    .thing:hover .tools,
+    .thing:focus-within .tools {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .tool {
+      font-size: 0.7rem;
+      padding: 0.18rem 0.42rem;
+    }
+
+    .swatch {
+      display: none;
+    }
+
+    .fab {
+      position: fixed;
+      right: 1.4rem;
+      bottom: 1.4rem;
+      z-index: 60;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: color-mix(in oklab, var(--paper), var(--accent) 12%);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform var(--dur) var(--ease-out), background var(--dur);
+    }
+
+    .fab:hover {
+      transform: translateY(-2px);
+      background: color-mix(in oklab, var(--paper), var(--accent) 22%);
+    }
+
+    .fab:active {
+      transform: translateY(1px);
+    }
+
+    .fab:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .fab svg {
+      width: 1.3rem;
+      height: 1.3rem;
+    }
+
+    .slate {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      max-width: 26rem;
+      text-align: center;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+      line-height: 1.7;
+      z-index: 1;
+    }
+
+    .slate b {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 1.4rem;
+      transform: translate(-50%, 1rem);
+      z-index: 70;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.5rem 0.85rem;
+      border-radius: 7px;
+      background: color-mix(in oklab, var(--paper), black 30%);
+      border: 1px solid var(--line-hi);
+      color: var(--ink);
+      opacity: 0;
+      pointer-events: none;
+      font-size: 0.82rem;
+      transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+      pointer-events: auto;
+    }
+
+    .toast-btn {
+      font: inherit;
+      font-weight: 700;
+      color: var(--accent);
+      background: none;
+      border: 0;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="hdr">
+    <div class="brand">
+      <span class="logo">thingboard</span>
+      <span class="prompt">$</span>
+      <span class="count" id="count">0</span>
+    </div>
+    <nav class="actions">
+      <a class="btn" href="https://github.com/thesephist/thingboard" target="_blank" rel="noopener">about</a>
+      <button class="btn" id="clear">clear</button>
+      <button class="btn" id="stack">stack</button>
+    </nav>
+  </header>
+
+  <main class="board" id="board">
+    <div class="things" id="things"></div>
+    <p class="slate" id="slate">
+      <b>+</b> drops a buffer. Grab the <b>:::::</b> bar to move — or focus a card and steer with the <b>arrow keys</b>.
+    </p>
+  </main>
+
+  <button class="fab" id="fab" aria-label="Add a card" title="Add a card">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+    </svg>
+  </button>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      const KEY = 'thingboard:terminal';
+      const SAMPLES = [
+        { value: 'todo.md\n\n- [ ] phosphor cursor\n- [ ] mono everything\n- [x] dark, not black', x: 110, y: 120, w: 300, h: 190 },
+        { value: 'scratch\n\nelevation = lightness, not glow.', x: 470, y: 160, w: 300, h: 150 },
+        { value: 'log\n\n02:14 — the board hums quietly.', x: 280, y: 400, w: 320, h: 140 },
+      ];
+
+      const things = document.getElementById('things');
+      const countEl = document.getElementById('count');
+      const slate = document.getElementById('slate');
+      const toastEl = document.getElementById('toast');
+      const tints = (document.body.dataset.tints || '').split(',').filter(Boolean);
+
+      let cards = [];
+      let z = 10;
+      const els = new Map();
+
+      const uid = () => Math.random().toString(36).slice(2, 9);
+      const debounce = (fn, d = 350) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), d); }; };
+      const persist = debounce(() => { try { localStorage.setItem(KEY, JSON.stringify(cards)); } catch (e) { } });
+
+      function toast(msg, label, onAction) {
+        toastEl.innerHTML = '';
+        const span = document.createElement('span');
+        span.textContent = msg;
+        toastEl.appendChild(span);
+        if (label) {
+          const b = document.createElement('button');
+          b.className = 'toast-btn';
+          b.textContent = label;
+          b.addEventListener('click', () => { onAction && onAction(); hide(); });
+          toastEl.appendChild(b);
+        }
+        toastEl.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(hide, 6000);
+        function hide() { toastEl.classList.remove('show'); }
+      }
+
+      function refreshMeta() {
+        countEl.textContent = cards.length;
+        slate.hidden = cards.length > 0;
+      }
+
+      function raise(el) { el.style.zIndex = ++z; }
+
+      function makeEl(card) {
+        const el = document.createElement('article');
+        el.className = 'thing' + (card.tint ? ' tint-' + card.tint : '');
+        if (card.tint) el.style.setProperty('--card', getComputedStyle(document.documentElement).getPropertyValue('--tint-' + card.tint));
+        el.dataset.id = card.id;
+        el.style.zIndex = ++z;
+
+        el.innerHTML =
+          '<div class="handle" tabindex="0" role="button" aria-label="Move card. Arrow keys nudge, Shift for fine.">' +
+          '<span class="grip" aria-hidden="true"></span><span class="coord" aria-hidden="true"></span></div>' +
+          '<div class="tools">' +
+          '<button class="btn tool" data-act="clone">clone</button>' +
+          '<button class="btn tool" data-act="delete">delete</button>' +
+          '<button class="btn tool" data-act="reset">reset</button>' +
+          (tints.length ? '<button class="btn tool swatch" data-act="tint" aria-label="Change card colour"></button>' : '') +
+          '</div>' +
+          '<textarea class="ta" placeholder="say something…" spellcheck="false"></textarea>';
+
+        const ta = el.querySelector('.ta');
+        const handle = el.querySelector('.handle');
+        const coord = el.querySelector('.coord');
+        ta.value = card.value || '';
+        ta.style.width = (card.w || 300) + 'px';
+        ta.style.height = (card.h || 180) + 'px';
+
+        function place() {
+          el.style.transform = 'translate(' + card.x + 'px,' + card.y + 'px)';
+          if (coord) coord.textContent = Math.round(card.x) + ', ' + Math.round(card.y);
+        }
+        place();
+
+        el.addEventListener('pointerdown', () => raise(el), true);
+        ta.addEventListener('input', () => { card.value = ta.value; persist(); });
+
+        const ro = new ResizeObserver(() => {
+          const w = ta.offsetWidth, h = ta.offsetHeight;
+          if (w && h && (w !== card.w || h !== card.h)) { card.w = w; card.h = h; persist(); }
+        });
+        ro.observe(ta);
+
+        let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+        handle.addEventListener('pointerdown', e => {
+          dragging = true; handle.setPointerCapture(e.pointerId);
+          sx = e.clientX; sy = e.clientY; ox = card.x; oy = card.y;
+          raise(el); el.classList.add('dragging');
+        });
+        handle.addEventListener('pointermove', e => {
+          if (!dragging) return;
+          card.x = ox + (e.clientX - sx);
+          card.y = oy + (e.clientY - sy);
+          place();
+        });
+        const end = () => { if (!dragging) return; dragging = false; el.classList.remove('dragging'); persist(); };
+        handle.addEventListener('pointerup', end);
+        handle.addEventListener('pointercancel', end);
+
+        handle.addEventListener('keydown', e => {
+          const step = e.shiftKey ? 1 : 12;
+          let moved = true;
+          if (e.key === 'ArrowUp') card.y -= step;
+          else if (e.key === 'ArrowDown') card.y += step;
+          else if (e.key === 'ArrowLeft') card.x -= step;
+          else if (e.key === 'ArrowRight') card.x += step;
+          else moved = false;
+          if (moved) { e.preventDefault(); place(); persist(); }
+        });
+
+        el.querySelector('.tools').addEventListener('click', e => {
+          const hit = e.target.closest('[data-act]');
+          if (!hit) return;
+          const act = hit.dataset.act;
+          if (act === 'delete') removeCard(card.id);
+          else if (act === 'clone') addCard({ value: card.value, x: card.x + 18, y: card.y + 18, w: card.w, h: card.h, tint: card.tint });
+          else if (act === 'reset') { card.w = 300; card.h = 180; ta.style.width = '300px'; ta.style.height = '180px'; persist(); }
+          else if (act === 'tint' && tints.length) {
+            const i = tints.indexOf(card.tint);
+            card.tint = tints[(i + 1) % tints.length];
+            el.className = 'thing tint-' + card.tint;
+            el.style.setProperty('--card', getComputedStyle(document.documentElement).getPropertyValue('--tint-' + card.tint));
+            persist();
+          }
+        });
+
+        return el;
+      }
+
+      function addCard(partial) {
+        const tint = tints.length ? tints[cards.length % tints.length] : undefined;
+        const card = Object.assign({ id: uid(), value: '', x: 60, y: 100, w: 300, h: 180, tint }, partial);
+        cards.push(card);
+        const el = makeEl(card);
+        els.set(card.id, el);
+        things.appendChild(el);
+        refreshMeta();
+        persist();
+        if (!card.value) el.querySelector('.ta').focus();
+        return card;
+      }
+
+      function removeCard(id) {
+        const el = els.get(id);
+        if (el) { el.remove(); els.delete(id); }
+        cards = cards.filter(c => c.id !== id);
+        refreshMeta();
+        persist();
+      }
+
+      function render() {
+        things.innerHTML = '';
+        els.clear();
+        for (const card of cards) {
+          if (!card.id) card.id = uid();
+          const el = makeEl(card);
+          els.set(card.id, el);
+          things.appendChild(el);
+        }
+        refreshMeta();
+      }
+
+      document.getElementById('fab').addEventListener('click', () => {
+        addCard({ x: Math.max(20, window.innerWidth / 2 - 150), y: Math.max(90, window.innerHeight / 2 - 100) });
+      });
+
+      document.getElementById('clear').addEventListener('click', () => {
+        if (!cards.length) return;
+        const backup = cards.slice();
+        cards = [];
+        render();
+        persist();
+        toast('Cleared ' + backup.length + ' card' + (backup.length === 1 ? '' : 's') + '.', 'Undo', () => {
+          cards = backup; render(); persist();
+        });
+      });
+
+      document.getElementById('stack').addEventListener('click', () => {
+        let i = 0;
+        for (const c of cards) {
+          i++;
+          c.x = i * 16;
+          c.y = 76 + i * 16;
+          const el = els.get(c.id);
+          el.style.transform = 'translate(' + c.x + 'px,' + c.y + 'px)';
+          raise(el);
+        }
+        persist();
+      });
+
+      function load() {
+        try { const raw = localStorage.getItem(KEY); if (raw) cards = JSON.parse(raw); } catch (e) { cards = []; }
+        if (!cards.length) cards = SAMPLES.map(s => Object.assign({ id: uid() }, s));
+      }
+
+      load();
+      render();
+    })();
+  </script>
+</body>
+
+</html>

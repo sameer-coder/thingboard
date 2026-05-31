@@ -1,0 +1,28 @@
+{
+  "name": "thingboard",
+  "version": "1.0.0",
+  "description": "**Thingboard** is just a simple **board** for writing **things** down. Frequently when I'm working, I find myself looking for places to jot stuff down to help me think and organize, but I don't want to be shuffling pieces of paper around, and it's nice to be able to copy-paste notes from other tools I use. Thingboard fulfills this need for me by being a board for Post-it style notes I can move and resize. It saves data to your browser's local storage.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sameer-coder/thingboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sameer-coder/thingboard/issues"
+  },
+  "homepage": "https://github.com/sameer-coder/thingboard#readme",
+  "devDependencies": {
+    "vite": "^8.0.14"
+  },
+  "dependencies": {
+    "@instantdb/core": "^1.0.42"
+  }
+}

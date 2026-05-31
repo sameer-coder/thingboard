@@ -1,0 +1,357 @@
+/* Theme support for thingboard.
+ * Default theme = no overrides here (uses paper.css + main.css as shipped).
+ * Each theme re-targets a variation's palette/fonts/grid/borders/shadows onto
+ * the live .tb-* / .paper DOM. Variables are set on `html[data-theme] body`
+ * so they win over main.css's `body { --paper-accent }` and inherit downward.
+ */
+
+/* ---- Theme switcher control (all themes, incl. default) ---- */
+.tb-theme-select {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding: 0.5em 2em 0.5em 1em;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7em center;
+  background-size: 0.62em;
+}
+
+.tb-theme-select:focus-visible {
+  outline: 2px solid var(--paper-accent);
+  outline-offset: 2px;
+}
+
+/* ============================ BLUEPRINT ============================ */
+html[data-theme="blueprint"] body {
+  --paper-accent: oklch(54% 0.16 252);
+  --paper-foreground: oklch(27% 0.03 256);
+  --paper-background: oklch(99.4% 0.003 248);
+  --paper-border-width: 3px;
+  --tb-line: oklch(83% 0.015 250);
+  --tb-faint: oklch(66% 0.02 256);
+  --tb-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px -4px rgba(16, 24, 40, 0.1);
+  --tb-shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.08), 0 14px 28px -8px rgba(16, 24, 40, 0.2);
+  color-scheme: light;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  color: var(--paper-foreground);
+  background-color: oklch(97% 0.006 248);
+  background-image: radial-gradient(oklch(80% 0.02 250 / 0.55) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+html[data-theme="blueprint"] .tb-header {
+  background: color-mix(in oklab, oklch(97% 0.006 248), white 30%);
+  border-bottom: 1px solid var(--tb-line);
+}
+
+html[data-theme="blueprint"] .title {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+html[data-theme="blueprint"] .tb-button,
+html[data-theme="blueprint"] .tb-theme-select {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 500;
+  border: 1px solid var(--tb-line);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+html[data-theme="blueprint"] .tb-button:hover,
+html[data-theme="blueprint"] .tb-theme-select:hover {
+  color: var(--paper-accent);
+  border-color: var(--paper-accent);
+  box-shadow: var(--tb-shadow);
+}
+
+html[data-theme="blueprint"] .tb-textarea {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 0.94rem;
+  background: var(--paper-background);
+  border: 1px solid var(--tb-line);
+  border-top: var(--paper-border-width) solid var(--paper-accent);
+  border-radius: 0 0 8px 8px;
+  box-shadow: var(--tb-shadow);
+}
+
+html[data-theme="blueprint"] .tb-textarea::placeholder {
+  color: var(--tb-faint);
+}
+
+html[data-theme="blueprint"] .tb-thing.active .tb-textarea,
+html[data-theme="blueprint"] .tb-thing:focus-within .tb-textarea {
+  box-shadow: var(--tb-shadow-lift);
+}
+
+html[data-theme="blueprint"] .tb-handle::before {
+  background: var(--tb-line);
+}
+
+html[data-theme="blueprint"] .tb-slate {
+  color: var(--paper-foreground);
+  opacity: 0.7;
+}
+
+html[data-theme="blueprint"] .tb-fab {
+  background: var(--paper-accent);
+  color: #fff;
+  border: 1px solid color-mix(in oklab, var(--paper-accent), black 10%);
+  border-radius: 9px;
+  box-shadow: var(--tb-shadow-lift);
+  transition: transform 0.15s;
+}
+
+html[data-theme="blueprint"] .tb-fab:hover {
+  transform: translateY(-2px);
+}
+
+/* ============================== LINEN ============================== */
+/* Paint the warm paper + dot-grid on <html> itself. main.css sets an opaque
+ * `html { background:#f8f8f8 }`, which blocks <body>'s background from
+ * propagating to the viewport canvas — and body has 0 height (everything lives
+ * in the absolutely-positioned .tb-board). So the canvas must be themed here. */
+html[data-theme="linen"] {
+  background-color: oklch(96.5% 0.013 84);
+  background-image: radial-gradient(oklch(78% 0.02 78 / 0.5) 1.3px, transparent 1.3px);
+  background-size: 26px 26px;
+}
+
+html[data-theme="linen"] body {
+  --paper-accent: oklch(60% 0.16 41);
+  --paper-foreground: oklch(29% 0.022 64);
+  --paper-background: oklch(99% 0.009 90);
+  --paper-border-width: 4px;
+  --tb-line: oklch(87% 0.018 78);
+  --tb-faint: oklch(64% 0.02 64);
+  --tb-shadow: 0 1px 2px rgba(74, 52, 28, 0.05), 0 10px 22px -10px rgba(74, 52, 28, 0.18);
+  --tb-shadow-lift: 0 2px 6px rgba(74, 52, 28, 0.08), 0 18px 34px -12px rgba(74, 52, 28, 0.26);
+  --tint-butter: oklch(96% 0.066 95);
+  --tint-blush: oklch(95% 0.045 24);
+  --tint-sage: oklch(94.5% 0.045 152);
+  --tint-sky: oklch(95% 0.043 238);
+  --tint-lilac: oklch(94.5% 0.045 305);
+  color-scheme: light;
+  font-family: 'Spline Sans', system-ui, -apple-system, sans-serif;
+  color: var(--paper-foreground);
+  background-color: oklch(96.5% 0.013 84);
+  background-image: radial-gradient(oklch(78% 0.02 78 / 0.5) 1.3px, transparent 1.3px);
+  background-size: 26px 26px;
+}
+
+html[data-theme="linen"] .tb-header {
+  background: linear-gradient(oklch(96.5% 0.013 84), oklch(96.5% 0.013 84 / 0));
+  border-bottom: 1px solid var(--tb-line);
+}
+
+html[data-theme="linen"] .title {
+  font-family: 'Fraunces', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+html[data-theme="linen"] .tb-button,
+html[data-theme="linen"] .tb-theme-select {
+  font-family: 'Spline Sans', system-ui, sans-serif;
+  font-weight: 500;
+  border: 1px solid var(--tb-line);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+html[data-theme="linen"] .tb-button:hover,
+html[data-theme="linen"] .tb-theme-select:hover {
+  border-color: var(--paper-accent);
+  box-shadow: var(--tb-shadow);
+}
+
+html[data-theme="linen"] .tb-textarea {
+  font-family: 'Spline Sans', system-ui, sans-serif;
+  font-size: 0.96rem;
+  background: var(--tb-tint, var(--paper-background));
+  border: 1px solid var(--tb-line);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  box-shadow: var(--tb-shadow);
+}
+
+html[data-theme="linen"] .tb-textarea::placeholder {
+  color: var(--tb-faint);
+  font-style: italic;
+}
+
+html[data-theme="linen"] .tb-thing.active .tb-textarea,
+html[data-theme="linen"] .tb-thing:focus-within .tb-textarea {
+  box-shadow: var(--tb-shadow-lift);
+}
+
+/* Color-coded index cards: cycle the warm tint palette by board position.
+ * Look-only (CSS): the colour follows a card's slot, not a saved per-card
+ * property, so it can shift if cards are reordered. A persisted tint button
+ * is a follow-up that needs main.js. */
+html[data-theme="linen"] .tb-things > .tb-thing:nth-child(5n + 1) {
+  --tb-tint: var(--tint-butter);
+}
+
+html[data-theme="linen"] .tb-things > .tb-thing:nth-child(5n + 2) {
+  --tb-tint: var(--tint-blush);
+}
+
+html[data-theme="linen"] .tb-things > .tb-thing:nth-child(5n + 3) {
+  --tb-tint: var(--tint-sage);
+}
+
+html[data-theme="linen"] .tb-things > .tb-thing:nth-child(5n + 4) {
+  --tb-tint: var(--tint-sky);
+}
+
+html[data-theme="linen"] .tb-things > .tb-thing:nth-child(5n + 5) {
+  --tb-tint: var(--tint-lilac);
+}
+
+/* Fused handle bar: the card-coloured grip strip that joins the textarea
+ * below it into one index card (replaces the terracotta top-stripe). */
+html[data-theme="linen"] .tb-handle {
+  box-sizing: border-box;
+  height: 22px;
+  background: var(--tb-tint, var(--paper-background));
+  border: 1px solid var(--tb-line);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+html[data-theme="linen"] .tb-handle:hover {
+  background: color-mix(in oklab, var(--tb-tint, var(--paper-background)), var(--paper-accent) 7%);
+}
+
+html[data-theme="linen"] .tb-handle::before {
+  background: var(--tb-line);
+}
+
+html[data-theme="linen"] .tb-slate {
+  color: var(--paper-foreground);
+  opacity: 0.72;
+}
+
+html[data-theme="linen"] .tb-fab {
+  background: var(--paper-accent);
+  color: oklch(99% 0.01 90);
+  border: 1px solid color-mix(in oklab, var(--paper-accent), black 8%);
+  border-radius: 50%;
+  box-shadow: var(--tb-shadow-lift);
+  transition: transform 0.16s;
+}
+
+html[data-theme="linen"] .tb-fab:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+/* ============================= TERMINAL ============================= */
+html[data-theme="terminal"] body {
+  --paper-accent: oklch(83% 0.17 148);
+  --paper-foreground: oklch(88% 0.012 264);
+  --paper-background: oklch(27.5% 0.014 264);
+  --paper-border-width: 3px;
+  --tb-line: oklch(46% 0.016 264);
+  --tb-faint: oklch(52% 0.012 264);
+  --tb-soft: oklch(68% 0.012 264);
+  --tb-card-hi: oklch(31% 0.016 264);
+  color-scheme: dark;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  color: var(--paper-foreground);
+  background-color: oklch(22% 0.012 264);
+  background-image:
+    linear-gradient(oklch(36% 0.014 264) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(36% 0.014 264) 1px, transparent 1px);
+  background-size: 30px 30px;
+  background-position: -1px -1px;
+}
+
+html[data-theme="terminal"] .tb-header {
+  background: color-mix(in oklab, oklch(22% 0.012 264), black 25%);
+  border-bottom: 1px solid oklch(36% 0.014 264);
+}
+
+html[data-theme="terminal"] .title {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+}
+
+html[data-theme="terminal"] .tb-button,
+html[data-theme="terminal"] .tb-theme-select {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 500;
+  color: var(--tb-soft);
+  border: 1px solid var(--tb-line);
+  border-radius: 5px;
+  box-shadow: none;
+}
+
+html[data-theme="terminal"] .tb-button:hover,
+html[data-theme="terminal"] .tb-theme-select:hover {
+  color: var(--paper-accent);
+  border-color: var(--paper-accent);
+  background: var(--tb-card-hi);
+  box-shadow: none;
+}
+
+html[data-theme="terminal"] .tb-theme-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23c8ccd4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+html[data-theme="terminal"] .tb-theme-select option {
+  background: var(--paper-background);
+  color: var(--paper-foreground);
+}
+
+html[data-theme="terminal"] .tb-textarea {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.86rem;
+  color: var(--paper-foreground);
+  background: var(--paper-background);
+  border: 1px solid var(--tb-line);
+  border-top: var(--paper-border-width) solid var(--paper-accent);
+  border-radius: 0 0 7px 7px;
+  box-shadow: none;
+  caret-color: var(--paper-accent);
+}
+
+html[data-theme="terminal"] .tb-textarea::placeholder {
+  color: var(--tb-faint);
+}
+
+html[data-theme="terminal"] .tb-thing.active .tb-textarea,
+html[data-theme="terminal"] .tb-thing:focus-within .tb-textarea {
+  background: var(--tb-card-hi);
+}
+
+html[data-theme="terminal"] .tb-handle::before {
+  background: var(--tb-faint);
+}
+
+html[data-theme="terminal"] .tb-handle:hover {
+  background: oklch(100% 0 0 / 0.05);
+}
+
+html[data-theme="terminal"] .tb-slate {
+  color: var(--tb-soft);
+}
+
+html[data-theme="terminal"] .tb-fab {
+  background: color-mix(in oklab, oklch(22% 0.012 264), var(--paper-accent) 12%);
+  color: var(--paper-accent);
+  border: 1px solid var(--paper-accent);
+  border-radius: 8px;
+  box-shadow: none;
+  transition: transform 0.14s, background 0.14s;
+}
+
+html[data-theme="terminal"] .tb-fab:hover {
+  transform: translateY(-2px);
+  background: color-mix(in oklab, oklch(22% 0.012 264), var(--paper-accent) 22%);
+}

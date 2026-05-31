@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>thingboard · design variations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Spline+Sans:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    /* Hallmark · gallery index for thingboard variations */
+    :root {
+      --paper: oklch(97% 0.008 250);
+      --card: oklch(99.5% 0.003 250);
+      --ink: oklch(26% 0.02 256);
+      --ink-soft: oklch(48% 0.02 256);
+      --ink-faint: oklch(63% 0.018 256);
+      --line: oklch(89% 0.012 250);
+      --accent: oklch(55% 0.16 252);
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body: 'Spline Sans', system-ui, sans-serif;
+      --dur: 160ms;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+    }
+
+    .wrap {
+      max-width: 50rem;
+      margin: 0 auto;
+      padding: clamp(2.5rem, 6vw, 5rem) 1.5rem 4rem;
+    }
+
+    header.intro {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .tag {
+      color: var(--ink-faint);
+      font-size: 0.95rem;
+    }
+
+    .lede {
+      margin: 1rem 0 2.5rem;
+      max-width: 38rem;
+      color: var(--ink-soft);
+      font-size: 1.05rem;
+    }
+
+    .lede code {
+      font-family: ui-monospace, monospace;
+      font-size: 0.9em;
+      background: color-mix(in oklab, var(--accent), white 86%);
+      color: var(--accent);
+      padding: 0.05em 0.35em;
+      border-radius: 4px;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 5.5rem 1fr auto;
+      gap: 1.2rem;
+      align-items: center;
+      padding: 1.1rem 1.2rem;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), border-color var(--dur);
+    }
+
+    .row:hover {
+      transform: translateY(-2px);
+      border-color: color-mix(in oklab, var(--accent), white 40%);
+      box-shadow: 0 2px 6px rgba(16, 24, 40, 0.06), 0 16px 30px -14px rgba(16, 24, 40, 0.25);
+    }
+
+    .row:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .swatches {
+      display: flex;
+      height: 2.8rem;
+      width: 5.5rem;
+      border-radius: 7px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .swatches span {
+      flex: 1;
+    }
+
+    .row h2 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.2rem;
+      margin: 0 0 0.15rem;
+    }
+
+    .row p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+    }
+
+    .meta {
+      font-size: 0.78rem;
+      color: var(--ink-faint);
+      margin-top: 0.3rem;
+    }
+
+    .go {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .baseline {
+      opacity: 0.82;
+    }
+
+    .baseline .swatches span:first-child {
+      background: #f8f8f8;
+    }
+
+    .note {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
+      color: var(--ink-faint);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 540px) {
+      .row {
+        grid-template-columns: 3.5rem 1fr;
+      }
+
+      .swatches {
+        width: 3.5rem;
+      }
+
+      .go {
+        grid-column: 2;
+        margin-top: 0.4rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header class="intro">
+      <h1>thingboard</h1>
+      <span class="tag">— three design directions</span>
+    </header>
+    <p class="lede">
+      Same app, same features (drag · resize · clone · clear · stack · localStorage). Each direction fixes the audit
+      issues — layered depth, a dot-grid, keyboard-movable cards, labelled controls, a display/body pairing, and
+      optimistic <code>clear</code> + Undo. Open one, drop a few cards, and pick the feel.
+    </p>
+
+    <nav class="list">
+      <a class="row" href="linen.html">
+        <span class="swatches" aria-hidden="true">
+          <span style="background:oklch(96.5% 0.013 84)"></span>
+          <span style="background:oklch(99% 0.009 90)"></span>
+          <span style="background:oklch(60% 0.16 41)"></span>
+        </span>
+        <span>
+          <h2>Linen</h2>
+          <p>Warm analog desk. Index cards with gentle colour-coding, serif titles, soft shadows.</p>
+          <div class="meta">warm-light · Fraunces serif · terracotta accent</div>
+        </span>
+        <span class="go">Open →</span>
+      </a>
+
+      <a class="row" href="blueprint.html">
+        <span class="swatches" aria-hidden="true">
+          <span style="background:oklch(97% 0.006 248)"></span>
+          <span style="background:oklch(99.4% 0.003 248)"></span>
+          <span style="background:oklch(54% 0.16 252)"></span>
+        </span>
+        <span>
+          <h2>Blueprint</h2>
+          <p>Precision thinking surface. Crisp dot-grid, live coordinates, hairline borders.</p>
+          <div class="meta">cool-light · Space Grotesk · ink-blue accent</div>
+        </span>
+        <span class="go">Open →</span>
+      </a>
+
+      <a class="row" href="terminal.html">
+        <span class="swatches" aria-hidden="true">
+          <span style="background:oklch(22% 0.012 264)"></span>
+          <span style="background:oklch(27.5% 0.014 264)"></span>
+          <span style="background:oklch(83% 0.17 148)"></span>
+        </span>
+        <span>
+          <h2>Terminal</h2>
+          <p>Midnight command board. Monospace throughout, elevation by lightness, phosphor accent.</p>
+          <div class="meta">dark · JetBrains Mono · phosphor-green accent</div>
+        </span>
+        <span class="go">Open →</span>
+      </a>
+
+      <a class="row baseline" href="../index.html">
+        <span class="swatches" aria-hidden="true">
+          <span></span>
+          <span style="background:#fff"></span>
+          <span style="background:#ed445b"></span>
+        </span>
+        <span>
+          <h2>Current</h2>
+          <p>Your shipping design — paper.css, Barlow, coral top-stripe. (Needs Torus + paper.css to run.)</p>
+          <div class="meta">baseline for comparison</div>
+        </span>
+        <span class="go">Open →</span>
+      </a>
+    </nav>
+
+    <p class="note">
+      These are standalone previews — your <code>index.html</code>, <code>main.css</code>, and <code>main.js</code> are
+      untouched. Pick a direction and I'll port it into the real Torus app.
+    </p>
+  </div>
+</body>
+
+</html>

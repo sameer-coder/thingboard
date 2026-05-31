@@ -1,4 +1,14 @@
 import { init, id } from '@instantdb/core';
+import {
+  DEFAULT_BOARD_ID,
+  DEFAULT_BOARD_NAME,
+  chooseBoardAfterDelete,
+  missingBoardIdThings,
+  normalizeBoardId,
+  resolveActiveBoardId,
+  sortBoards,
+  visibleThingsForBoard,
+} from './board-state.mjs';
 
 // Your InstantDB app (no auth - personal scratchpad only)
 const APP_ID = 'c4ac6c0d-dbf5-46dc-8eac-f4b8f4b61d46';
@@ -54,6 +64,7 @@ const debounce = (fn, delay) => {
 
 // Theme is a local-only preference (separate from cloud-synced `things`).
 const THEME_KEY = 'thingboard:theme';
+const ACTIVE_BOARD_KEY = 'thingboard:activeBoardId';
 const THEMES = [
   { id: 'default', label: 'Default' },
   { id: 'blueprint', label: 'Blueprint' },
@@ -75,6 +86,22 @@ const setTheme = (id) => {
     localStorage.setItem(THEME_KEY, id);
   } catch (e) { }
 };
+
+const getStoredActiveBoardId = () => {
+  try {
+    return normalizeBoardId(localStorage.getItem(ACTIVE_BOARD_KEY));
+  } catch (e) {
+    return DEFAULT_BOARD_ID;
+  }
+};
+
+const setStoredActiveBoardId = (boardId) => {
+  try {
+    localStorage.setItem(ACTIVE_BOARD_KEY, boardId);
+  } catch (e) { }
+};
+
+const boardName = (board) => board?.name || DEFAULT_BOARD_NAME;
 
 function xy(evt) {
   let event = evt;
@@ -272,28 +299,36 @@ class Board extends Component {
   init() {
     boardRef = this;
     this.connection = connectionLabel('connecting');
+    this.boards = [];
+    this.remoteThings = [];
+    this.activeBoardId = getStoredActiveBoardId();
     this.things = new ThingStore();
     this.thingList = new ThingList(
       this.things,
       (data) => this.createThing(data),
     );
     this.instantIdToRecord = new Map();
+    this.backfilledThingIds = new Set();
+    this.defaultBoardCreateRequested = false;
+    this.isSyncingFromRemote = false;
 
     this.ctrlDown = false;
     this.toast = '';
     this.theme = getTheme();
+    this.boardActionsOpen = false;
     setTheme(this.theme);
     this.handleKeydown = this.handleKeydown.bind(this);
+    this.handleGlobalClick = this.handleGlobalClick.bind(this);
 
     // Real-time sync from InstantDB (core requirement)
-    this.unsubscribe = db.subscribeQuery({ things: {} }, (resp) => {
+    this.unsubscribe = db.subscribeQuery({ boards: {}, things: {} }, (resp) => {
       if (resp.error) {
         console.error('InstantDB query error', resp.error);
         this.showToast('⚠ query error');
         return;
       }
       if (resp.data) {
-        this.syncFromRemote(resp.data.things || []);
+        this.syncFromRemote(resp.data.boards || [], resp.data.things || []);
       }
     });
 
@@ -312,10 +347,12 @@ class Board extends Component {
     this.bind(this.things, () => this.render());
 
     window.addEventListener('keydown', this.handleKeydown);
+    window.addEventListener('click', this.handleGlobalClick);
   }
 
   createThing(initialData = {}) {
     const iid = id();
+    const boardId = normalizeBoardId(initialData.boardId || this.activeBoardId);
     const rec = this.things.create({
       value: '',
       x: 0,
@@ -323,20 +360,24 @@ class Board extends Component {
       width: 300,
       height: 200,
       ...initialData,
+      boardId,
     });
     rec._instantId = iid;
-    const handler = () => this.pushToCloud(rec);
+    const handler = () => {
+      if (!this.isSyncingFromRemote) this.pushToCloud(rec);
+    };
     rec.addHandler(handler);
     this.instantIdToRecord.set(iid, rec);
 
     const snap = rec.serialize ? rec.serialize() : initialData;
     safeTransact(
-      db.tx.things[iid].create({
+      db.tx.things[iid].update({
         value: snap.value || '',
         x: snap.x || 0,
         y: snap.y || 0,
         width: snap.width || 300,
         height: snap.height || 200,
+        boardId: snap.boardId || boardId,
       }),
       'create'
     );
@@ -355,47 +396,109 @@ class Board extends Component {
         y: d.y || 0,
         width: d.width || 300,
         height: d.height || 200,
+        boardId: normalizeBoardId(d.boardId || this.activeBoardId),
       }),
       'update'
     );
     this.showToast('...');
   }
 
-  syncFromRemote(remoteThings) {
-    const remoteMap = new Map(remoteThings.map(t => [t.id, t]));
+  ensureDefaultBoard(remoteBoards) {
+    if (remoteBoards.length || this.defaultBoardCreateRequested) return;
+    this.defaultBoardCreateRequested = true;
+    safeTransact(
+      db.tx.boards[DEFAULT_BOARD_ID].update({
+        name: DEFAULT_BOARD_NAME,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }),
+      'create default board'
+    );
+  }
+
+  backfillLegacyThings(remoteThings) {
+    const missing = missingBoardIdThings(remoteThings)
+      .filter((thing) => thing.id && !this.backfilledThingIds.has(thing.id));
+    if (!missing.length) return;
+
+    for (const thing of missing) {
+      this.backfilledThingIds.add(thing.id);
+    }
+    safeTransact(
+      missing.map((thing) => db.tx.things[thing.id].update({
+        boardId: DEFAULT_BOARD_ID,
+      })),
+      'backfill board ids'
+    );
+  }
+
+  syncVisibleThings() {
+    const visibleThings = visibleThingsForBoard(this.remoteThings, this.activeBoardId);
+    const remoteMap = new Map(visibleThings.map(t => [t.id, t]));
 
     // Upsert / update in place (keeps existing cards mounted during typing)
-    for (const [iid, remote] of remoteMap) {
-      if (this.instantIdToRecord.has(iid)) {
-        const rec = this.instantIdToRecord.get(iid);
-        rec.update({
-          value: remote.value ?? '',
-          x: remote.x ?? 0,
-          y: remote.y ?? 0,
-          width: remote.width ?? 300,
-          height: remote.height ?? 200,
-        });
-      } else {
-        const rec = this.things.create({
-          value: remote.value ?? '',
-          x: remote.x ?? 0,
-          y: remote.y ?? 0,
-          width: remote.width ?? 300,
-          height: remote.height ?? 200,
-        });
-        rec._instantId = iid;
-        rec.addHandler(() => this.pushToCloud(rec));
-        this.instantIdToRecord.set(iid, rec);
+    this.isSyncingFromRemote = true;
+    try {
+      for (const [iid, remote] of remoteMap) {
+        if (this.instantIdToRecord.has(iid)) {
+          const rec = this.instantIdToRecord.get(iid);
+          rec.update({
+            value: remote.value ?? '',
+            x: remote.x ?? 0,
+            y: remote.y ?? 0,
+            width: remote.width ?? 300,
+            height: remote.height ?? 200,
+            boardId: normalizeBoardId(remote.boardId),
+          });
+        } else {
+          const rec = this.things.create({
+            value: remote.value ?? '',
+            x: remote.x ?? 0,
+            y: remote.y ?? 0,
+            width: remote.width ?? 300,
+            height: remote.height ?? 200,
+            boardId: normalizeBoardId(remote.boardId),
+          });
+          rec._instantId = iid;
+          rec.addHandler(() => {
+            if (!this.isSyncingFromRemote) this.pushToCloud(rec);
+          });
+          this.instantIdToRecord.set(iid, rec);
+        }
       }
+    } finally {
+      this.isSyncingFromRemote = false;
     }
 
-    // Remove cards that were deleted on another device
+    // Remove cards that were deleted or belong to a different active board.
     for (const [iid, rec] of [...this.instantIdToRecord]) {
       if (!remoteMap.has(iid)) {
         this.things.remove(rec);
         this.instantIdToRecord.delete(iid);
       }
     }
+
+  }
+
+  syncFromRemote(remoteBoards, remoteThings) {
+    this.ensureDefaultBoard(remoteBoards);
+
+    this.boards = sortBoards(remoteBoards.length ? remoteBoards : [{
+      id: DEFAULT_BOARD_ID,
+      name: DEFAULT_BOARD_NAME,
+      createdAt: 0,
+      updatedAt: 0,
+    }]);
+    this.remoteThings = remoteThings;
+
+    const nextActiveBoardId = resolveActiveBoardId(this.boards, this.activeBoardId);
+    if (nextActiveBoardId !== this.activeBoardId) {
+      this.activeBoardId = nextActiveBoardId;
+      setStoredActiveBoardId(this.activeBoardId);
+    }
+
+    this.backfillLegacyThings(remoteThings);
+    this.syncVisibleThings();
 
     // One-time migration: if we had local data and cloud was empty
     if (this._pendingLocalMigration && remoteThings.length === 0) {
@@ -408,6 +511,134 @@ class Board extends Component {
     }
 
     this.render();
+  }
+
+  activeBoard() {
+    return this.boards.find((board) => board.id === this.activeBoardId) || null;
+  }
+
+  switchBoard(boardId) {
+    this.activeBoardId = normalizeBoardId(boardId);
+    setStoredActiveBoardId(this.activeBoardId);
+    this.syncVisibleThings();
+    this.render();
+  }
+
+  createBoard() {
+    const suggestedName = `Board ${this.boards.length + 1}`;
+    const rawName = window.prompt('New board name', suggestedName);
+    const name = rawName && rawName.trim();
+    if (!name) return;
+
+    const boardId = id();
+    const now = Date.now();
+    const board = { id: boardId, name, createdAt: now, updatedAt: now };
+    this.boards = sortBoards([...this.boards, board]);
+    this.switchBoard(boardId);
+    safeTransact(
+      db.tx.boards[boardId].update({
+        name,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      'create board'
+    );
+    this.showToast('board created');
+  }
+
+  renameActiveBoard() {
+    const board = this.activeBoard();
+    if (!board) return;
+
+    const rawName = window.prompt('Rename board', boardName(board));
+    const name = rawName && rawName.trim();
+    if (!name || name === boardName(board)) return;
+
+    const updatedAt = Date.now();
+    this.boards = sortBoards(this.boards.map((item) => (
+      item.id === this.activeBoardId ? { ...item, name, updatedAt } : item
+    )));
+    safeTransact(
+      db.tx.boards[this.activeBoardId].update({ name, updatedAt }),
+      'rename board'
+    );
+    this.showToast('renamed');
+    this.render();
+  }
+
+  deleteActiveBoard() {
+    const board = this.activeBoard();
+    if (!board) return;
+
+    const boardThings = visibleThingsForBoard(this.remoteThings, this.activeBoardId);
+    const cardLabel = boardThings.length === 1 ? 'card' : 'cards';
+    const ok = window.confirm(
+      `Delete "${boardName(board)}" and ${boardThings.length} ${cardLabel}?`
+    );
+    if (!ok) return;
+
+    const nextBoardId = chooseBoardAfterDelete(this.boards, this.activeBoardId);
+    const remainingBoards = sortBoards(
+      this.boards.filter((item) => item.id !== this.activeBoardId)
+    );
+    const txs = boardThings.map((thing) => db.tx.things[thing.id].delete());
+
+    if (remainingBoards.length) {
+      txs.push(db.tx.boards[this.activeBoardId].delete());
+      this.boards = remainingBoards;
+    } else if (this.activeBoardId === DEFAULT_BOARD_ID) {
+      txs.push(db.tx.boards[DEFAULT_BOARD_ID].update({
+        name: DEFAULT_BOARD_NAME,
+        updatedAt: Date.now(),
+      }));
+      this.boards = [{
+        id: DEFAULT_BOARD_ID,
+        name: DEFAULT_BOARD_NAME,
+        createdAt: board.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      }];
+    } else {
+      const now = Date.now();
+      txs.push(db.tx.boards[this.activeBoardId].delete());
+      txs.push(db.tx.boards[DEFAULT_BOARD_ID].update({
+        name: DEFAULT_BOARD_NAME,
+        createdAt: now,
+        updatedAt: now,
+      }));
+      this.boards = [{
+        id: DEFAULT_BOARD_ID,
+        name: DEFAULT_BOARD_NAME,
+        createdAt: now,
+        updatedAt: now,
+      }];
+    }
+
+    this.remoteThings = this.remoteThings.filter((thing) => (
+      normalizeBoardId(thing.boardId) !== this.activeBoardId
+    ));
+    this.activeBoardId = nextBoardId;
+    setStoredActiveBoardId(this.activeBoardId);
+    this.instantIdToRecord.clear();
+    this.things.reset();
+    this.syncVisibleThings();
+    if (txs.length) safeTransact(txs, 'delete board');
+    this.showToast('board deleted');
+  }
+
+  clearActiveBoard() {
+    const txs = [];
+    for (const rec of this.things.records) {
+      if (rec._instantId) {
+        txs.push(db.tx.things[rec._instantId].delete());
+      }
+    }
+
+    this.remoteThings = this.remoteThings.filter((thing) => (
+      normalizeBoardId(thing.boardId) !== this.activeBoardId
+    ));
+    if (txs.length) safeTransact(txs, 'clear');
+    this.instantIdToRecord.clear();
+    this.things.reset();
   }
 
   migrateFromLocalIfNeeded() {
@@ -432,6 +663,29 @@ class Board extends Component {
     }, 1400);
   }
 
+  closeBoardActions() {
+    if (!this.boardActionsOpen) return;
+    this.boardActionsOpen = false;
+    this.render();
+  }
+
+  toggleBoardActions(evt) {
+    evt.stopPropagation();
+    this.boardActionsOpen = !this.boardActionsOpen;
+    this.render();
+  }
+
+  handleBoardAction(action) {
+    this.boardActionsOpen = false;
+    action();
+  }
+
+  handleGlobalClick(evt) {
+    if (!this.boardActionsOpen) return;
+    if (evt.target.closest && evt.target.closest('.tb-board-actions')) return;
+    this.closeBoardActions();
+  }
+
   handleKeydown(evt) {
     if (evt.key === 'Control' || evt.key === 'Meta') {
       this.ctrlDown = true;
@@ -449,14 +703,35 @@ class Board extends Component {
   }
 
   compose() {
+    const activeBoard = this.activeBoard();
     return jdom`<div class="tb-board ${this.ctrlDown ? 'ctrlDown' : ''}">
       <header class="tb-header">
         <div class="left">
           <span class="title">thingboard</span>
-          (${this.toast || this.things.records.size})
+          (${this.toast || `${this.things.records.size} on ${boardName(activeBoard)}`})
           <span class="tb-conn tb-conn-${(this.connection || '').replace(/[^a-z]/gi, '')}">${this.connection}</span>
         </div>
         <div class="right">
+          <div class="tb-board-controls">
+            <select class="tb-board-select paper" aria-label="Board" value=${this.activeBoardId}
+              onchange=${(evt) => this.switchBoard(evt.target.value)}>
+              ${this.boards.map(b => jdom`<option value=${b.id} selected=${b.id === this.activeBoardId}>${boardName(b)}</option>`)}
+            </select>
+            <div class="tb-board-actions">
+              <button class="tb-button movable paper"
+                aria-haspopup="menu"
+                aria-expanded=${this.boardActionsOpen ? 'true' : 'false'}
+                onclick=${(evt) => this.toggleBoardActions(evt)}>board</button>
+              ${this.boardActionsOpen ? jdom`<div class="tb-board-actions-menu paper" role="menu">
+                <button class="tb-button movable paper" role="menuitem"
+                  onclick=${() => this.handleBoardAction(() => this.createBoard())}>+ board</button>
+                <button class="tb-button movable paper" role="menuitem"
+                  onclick=${() => this.handleBoardAction(() => this.renameActiveBoard())}>rename</button>
+                <button class="tb-button movable paper" role="menuitem"
+                  onclick=${() => this.handleBoardAction(() => this.deleteActiveBoard())}>delete board</button>
+              </div>` : null}
+            </div>
+          </div>
           <select class="tb-theme-select paper" aria-label="Theme" value=${this.theme}
             onchange=${(evt) => {
               this.theme = evt.target.value;
@@ -468,17 +743,7 @@ class Board extends Component {
           <a class="tb-button movable paper" target="_blank"
             href="https://github.com/thesephist/thingboard">about</a>
           <button class="tb-button movable paper"
-            onclick=${() => {
-              const txs = [];
-              for (const rec of this.things.records) {
-                if (rec._instantId) {
-                  txs.push(db.tx.things[rec._instantId].delete());
-                }
-              }
-              if (txs.length) safeTransact(txs, 'clear');
-              this.instantIdToRecord.clear();
-              this.things.reset();
-            }}>clear</button>
+            onclick=${() => this.clearActiveBoard()}>clear</button>
           <button class="tb-button movable paper"
             onclick=${() => {
               let i = 1;
@@ -495,7 +760,7 @@ class Board extends Component {
       </header>
       ${this.things.records.size ? this.thingList.node : (
         jdom`<div class="tb-slate">
-          Click + to create a card. <br/>
+          ${boardName(activeBoard)} is empty. Click + to create a card. <br/>
           Ctrl/Cmd + drag to move cards.
         </div>`
       )}

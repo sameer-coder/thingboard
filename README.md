@@ -43,7 +43,12 @@ The `dist/` folder is a fully static site. Deploy exactly like before:
 
 ### Data Model
 
-Each sticky note ("Thing") is an independent document in the `things` collection in InstantDB. This enables efficient partial realtime updates (e.g. drag one note on your phone → it moves instantly on your laptop without reloading the whole board).
+Thingboard stores boards and sticky notes in InstantDB:
+
+- `boards`: one document per board, including its cloud-synced name and timestamps.
+- `things`: one document per sticky note, including `value`, `x`, `y`, `width`, `height`, and `boardId`.
+
+Each sticky note ("Thing") is still an independent document in the `things` collection. The `boardId` field assigns it to a board, so the app can show one active board at a time while keeping the full board list in the cloud.
 
 ### Important: Permissions (No Auth)
 
@@ -59,7 +64,8 @@ Because there is **no authentication**, anyone who has your `APP_ID` can read/wr
 ### Migration from Old localStorage
 
 On first load with the new version:
-- If your browser still has old localStorage data **and** your InstantDB app is empty, it will automatically bulk-create everything in the cloud and clear the old local copy.
+- If your browser still has old localStorage data **and** your InstantDB app is empty, it will automatically bulk-create everything on the default cloud board and clear the old local copy.
+- Existing cloud notes without a `boardId` are assigned to the default board.
 - Future loads are 100% driven by the cloud.
 
 ### Future Electron / Desktop App

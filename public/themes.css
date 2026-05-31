@@ -27,6 +27,15 @@
 }
 
 /* ============================ BLUEPRINT ============================ */
+/* Canvas background on <html> (see Linen note: opaque html bg + 0-height body
+ * block <body>'s background from reaching the viewport canvas). */
+html[data-theme="blueprint"] {
+  background-color: oklch(97% 0.006 248);
+  background-image: radial-gradient(oklch(80% 0.02 250 / 0.55) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
 html[data-theme="blueprint"] body {
   --paper-accent: oklch(54% 0.16 252);
   --paper-foreground: oklch(27% 0.03 256);
@@ -39,10 +48,6 @@ html[data-theme="blueprint"] body {
   color-scheme: light;
   font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   color: var(--paper-foreground);
-  background-color: oklch(97% 0.006 248);
-  background-image: radial-gradient(oklch(80% 0.02 250 / 0.55) 1.1px, transparent 1.1px);
-  background-size: 22px 22px;
-  background-position: -1px -1px;
 }
 
 html[data-theme="blueprint"] .tb-header {
@@ -140,9 +145,6 @@ html[data-theme="linen"] body {
   color-scheme: light;
   font-family: 'Spline Sans', system-ui, -apple-system, sans-serif;
   color: var(--paper-foreground);
-  background-color: oklch(96.5% 0.013 84);
-  background-image: radial-gradient(oklch(78% 0.02 78 / 0.5) 1.3px, transparent 1.3px);
-  background-size: 26px 26px;
 }
 
 html[data-theme="linen"] .tb-header {
@@ -252,6 +254,17 @@ html[data-theme="linen"] .tb-fab:hover {
 }
 
 /* ============================= TERMINAL ============================= */
+/* Canvas background on <html> (see Linen note: opaque html bg + 0-height body
+ * block <body>'s background from reaching the viewport canvas). */
+html[data-theme="terminal"] {
+  background-color: oklch(22% 0.012 264);
+  background-image:
+    linear-gradient(oklch(36% 0.014 264) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(36% 0.014 264) 1px, transparent 1px);
+  background-size: 30px 30px;
+  background-position: -1px -1px;
+}
+
 html[data-theme="terminal"] body {
   --paper-accent: oklch(83% 0.17 148);
   --paper-foreground: oklch(88% 0.012 264);
@@ -264,12 +277,6 @@ html[data-theme="terminal"] body {
   color-scheme: dark;
   font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
   color: var(--paper-foreground);
-  background-color: oklch(22% 0.012 264);
-  background-image:
-    linear-gradient(oklch(36% 0.014 264) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(36% 0.014 264) 1px, transparent 1px);
-  background-size: 30px 30px;
-  background-position: -1px -1px;
 }
 
 html[data-theme="terminal"] .tb-header {

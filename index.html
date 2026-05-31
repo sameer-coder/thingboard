@@ -5,18 +5,27 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
 	<title>thingboard</title>
+	<script>
+		try {
+			var t = localStorage.getItem('thingboard:theme');
+			if (t) document.documentElement.dataset.theme = t;
+		} catch (e) { }
+	</script>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;700&display=swap" rel="stylesheet">
-	<link href="paper.min.css" rel="stylesheet" type="text/css" />
-	<link href="main.css" rel="stylesheet" type="text/css" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Spline+Sans:wght@400;500;600&display=swap"
+		rel="stylesheet">
+	<link href="/paper.min.css" rel="stylesheet" type="text/css" />
+	<link href="/main.css" rel="stylesheet" type="text/css" />
+	<link href="/themes.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
-	<script src="torus.min.js">
-
-	</script>
-	<script src="main.js">
-
-	</script>
+	<script src="/torus.min.js"></script>
+	<!-- Vite-injected module entry for our app logic (after Torus global is available) -->
+	<script type="module" src="/src/main.js"></script>
 </body>
 
 </html>

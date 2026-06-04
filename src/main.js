@@ -9,6 +9,12 @@ import {
   sortBoards,
   visibleThingsForBoard,
 } from './board-state.mjs';
+import {
+  DEFAULT_THEME_ID,
+  removeBoardThemeId,
+  resolveBoardThemeId,
+  updateBoardThemeId,
+} from './theme-state.mjs';
 
 // Your InstantDB app (no auth - personal scratchpad only)
 const APP_ID = 'c4ac6c0d-dbf5-46dc-8eac-f4b8f4b61d46';
@@ -64,6 +70,7 @@ const debounce = (fn, delay) => {
 
 // Theme is a local-only preference (separate from cloud-synced `things`).
 const THEME_KEY = 'thingboard:theme';
+const BOARD_THEMES_KEY = 'thingboard:boardThemes';
 const ACTIVE_BOARD_KEY = 'thingboard:activeBoardId';
 const THEMES = [
   { id: 'default', label: 'Default' },
@@ -71,20 +78,68 @@ const THEMES = [
   { id: 'linen', label: 'Linen' },
   { id: 'terminal', label: 'Terminal' },
 ];
+const THEME_IDS = new Set(THEMES.map((theme) => theme.id));
 
-const getTheme = () => {
+const getLegacyTheme = () => {
   try {
-    return localStorage.getItem(THEME_KEY) || 'default';
+    return localStorage.getItem(THEME_KEY) || DEFAULT_THEME_ID;
   } catch (e) {
-    return 'default';
+    return DEFAULT_THEME_ID;
   }
 };
 
-const setTheme = (id) => {
-  document.documentElement.dataset.theme = id;
+const getStoredBoardThemes = () => {
   try {
-    localStorage.setItem(THEME_KEY, id);
+    const parsed = JSON.parse(localStorage.getItem(BOARD_THEMES_KEY) || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+const setStoredBoardThemes = (boardThemes) => {
+  try {
+    localStorage.setItem(BOARD_THEMES_KEY, JSON.stringify(boardThemes));
   } catch (e) { }
+};
+
+const getBoardTheme = (boardId) => (
+  resolveBoardThemeId(getStoredBoardThemes(), boardId, THEME_IDS)
+);
+
+const getInitialBoardTheme = (boardId) => {
+  const boardThemes = getStoredBoardThemes();
+  const normalizedBoardId = normalizeBoardId(boardId);
+  return Object.prototype.hasOwnProperty.call(boardThemes, normalizedBoardId)
+    ? resolveBoardThemeId(boardThemes, normalizedBoardId, THEME_IDS)
+    : resolveBoardThemeId({ [normalizedBoardId]: getLegacyTheme() }, normalizedBoardId, THEME_IDS);
+};
+
+const applyTheme = (themeId) => {
+  document.documentElement.dataset.theme = themeId;
+};
+
+const setBoardTheme = (boardId, themeId) => {
+  const nextThemeId = resolveBoardThemeId(
+    { [normalizeBoardId(boardId)]: themeId },
+    boardId,
+    THEME_IDS
+  );
+  applyTheme(nextThemeId);
+  setStoredBoardThemes(updateBoardThemeId(
+    getStoredBoardThemes(),
+    boardId,
+    nextThemeId,
+    THEME_IDS
+  ));
+  try {
+    localStorage.setItem(THEME_KEY, nextThemeId);
+  } catch (e) { }
+  return nextThemeId;
+};
+
+const removeBoardTheme = (boardId) => {
+  setStoredBoardThemes(removeBoardThemeId(getStoredBoardThemes(), boardId));
 };
 
 const getStoredActiveBoardId = () => {
@@ -314,9 +369,8 @@ class Board extends Component {
 
     this.ctrlDown = false;
     this.toast = '';
-    this.theme = getTheme();
+    this.theme = setBoardTheme(this.activeBoardId, getInitialBoardTheme(this.activeBoardId));
     this.boardActionsOpen = false;
-    setTheme(this.theme);
     this.handleKeydown = this.handleKeydown.bind(this);
     this.handleGlobalClick = this.handleGlobalClick.bind(this);
 
@@ -495,6 +549,7 @@ class Board extends Component {
     if (nextActiveBoardId !== this.activeBoardId) {
       this.activeBoardId = nextActiveBoardId;
       setStoredActiveBoardId(this.activeBoardId);
+      this.theme = setBoardTheme(this.activeBoardId, getBoardTheme(this.activeBoardId));
     }
 
     this.backfillLegacyThings(remoteThings);
@@ -520,6 +575,7 @@ class Board extends Component {
   switchBoard(boardId) {
     this.activeBoardId = normalizeBoardId(boardId);
     setStoredActiveBoardId(this.activeBoardId);
+    this.theme = setBoardTheme(this.activeBoardId, getBoardTheme(this.activeBoardId));
     this.syncVisibleThings();
     this.render();
   }
@@ -577,16 +633,17 @@ class Board extends Component {
     );
     if (!ok) return;
 
-    const nextBoardId = chooseBoardAfterDelete(this.boards, this.activeBoardId);
+    const deletedBoardId = this.activeBoardId;
+    const nextBoardId = chooseBoardAfterDelete(this.boards, deletedBoardId);
     const remainingBoards = sortBoards(
-      this.boards.filter((item) => item.id !== this.activeBoardId)
+      this.boards.filter((item) => item.id !== deletedBoardId)
     );
     const txs = boardThings.map((thing) => db.tx.things[thing.id].delete());
 
     if (remainingBoards.length) {
-      txs.push(db.tx.boards[this.activeBoardId].delete());
+      txs.push(db.tx.boards[deletedBoardId].delete());
       this.boards = remainingBoards;
-    } else if (this.activeBoardId === DEFAULT_BOARD_ID) {
+    } else if (deletedBoardId === DEFAULT_BOARD_ID) {
       txs.push(db.tx.boards[DEFAULT_BOARD_ID].update({
         name: DEFAULT_BOARD_NAME,
         updatedAt: Date.now(),
@@ -599,7 +656,7 @@ class Board extends Component {
       }];
     } else {
       const now = Date.now();
-      txs.push(db.tx.boards[this.activeBoardId].delete());
+      txs.push(db.tx.boards[deletedBoardId].delete());
       txs.push(db.tx.boards[DEFAULT_BOARD_ID].update({
         name: DEFAULT_BOARD_NAME,
         createdAt: now,
@@ -614,10 +671,12 @@ class Board extends Component {
     }
 
     this.remoteThings = this.remoteThings.filter((thing) => (
-      normalizeBoardId(thing.boardId) !== this.activeBoardId
+      normalizeBoardId(thing.boardId) !== deletedBoardId
     ));
+    removeBoardTheme(deletedBoardId);
     this.activeBoardId = nextBoardId;
     setStoredActiveBoardId(this.activeBoardId);
+    this.theme = setBoardTheme(this.activeBoardId, getBoardTheme(this.activeBoardId));
     this.instantIdToRecord.clear();
     this.things.reset();
     this.syncVisibleThings();
@@ -734,8 +793,7 @@ class Board extends Component {
           </div>
           <select class="tb-theme-select paper" aria-label="Theme" value=${this.theme}
             onchange=${(evt) => {
-              this.theme = evt.target.value;
-              setTheme(this.theme);
+              this.theme = setBoardTheme(this.activeBoardId, evt.target.value);
               this.render();
             }}>
             ${THEMES.map(t => jdom`<option value=${t.id} selected=${t.id === this.theme}>${t.label}</option>`)}

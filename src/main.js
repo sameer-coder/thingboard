@@ -766,8 +766,7 @@ class Board extends Component {
     return jdom`<div class="tb-board ${this.ctrlDown ? 'ctrlDown' : ''}">
       <header class="tb-header">
         <div class="left">
-          <span class="title">thingboard</span>
-          (${this.toast || `${this.things.records.size} on ${boardName(activeBoard)}`})
+          ${this.toast || `${this.things.records.size} on ${boardName(activeBoard)}`}
           <span class="tb-conn tb-conn-${(this.connection || '').replace(/[^a-z]/gi, '')}">${this.connection}</span>
         </div>
         <div class="right">
@@ -783,7 +782,7 @@ class Board extends Component {
                 onclick=${(evt) => this.toggleBoardActions(evt)}>board</button>
               ${this.boardActionsOpen ? jdom`<div class="tb-board-actions-menu paper" role="menu">
                 <button class="tb-button movable paper" role="menuitem"
-                  onclick=${() => this.handleBoardAction(() => this.createBoard())}>+ board</button>
+                  onclick=${() => this.handleBoardAction(() => this.createBoard())}>create</button>
                 <button class="tb-button movable paper" role="menuitem"
                   onclick=${() => this.handleBoardAction(() => this.renameActiveBoard())}>rename</button>
                 <button class="tb-button movable paper" role="menuitem"
@@ -798,22 +797,8 @@ class Board extends Component {
             }}>
             ${THEMES.map(t => jdom`<option value=${t.id} selected=${t.id === this.theme}>${t.label}</option>`)}
           </select>
-          <a class="tb-button movable paper" target="_blank"
-            href="https://github.com/thesephist/thingboard">about</a>
           <button class="tb-button movable paper"
             onclick=${() => this.clearActiveBoard()}>clear</button>
-          <button class="tb-button movable paper"
-            onclick=${() => {
-              let i = 1;
-              const { height } = this.node.querySelector('header').getBoundingClientRect();
-              for (const thing of this.things) {
-                thing.update({
-                  x: i * 10,
-                  y: i * 10 + height,
-                });
-                i++;
-              }
-            }}>stack</button>
         </div>
       </header>
       ${this.things.records.size ? this.thingList.node : (
